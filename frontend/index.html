@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MatchBloc — matching-fund rounds on BOT Chain</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Shrikhand&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.9.0/ethers.umd.min.js"></script>
+<style>
+/* ============================================================================
+   MEMPHIS DESIGN — 1980s postmodern. Confetti terrazzo, squiggles, clashing
+   pop colours, everything slightly off-axis. Nothing lines up on a grid and
+   nothing is the same size twice.
+   ========================================================================== */
+:root{
+  --cream:#fdf4e3;
+  --ink:#191324;
+  --pink:#ff4f8b;
+  --cyan:#23cfd8;
+  --yellow:#ffd23f;
+  --lilac:#9b7bff;
+  --mint:#58e2a0;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--cream);color:var(--ink);
+  font-family:'Poppins',system-ui,sans-serif;font-size:16px;line-height:1.6;
+  background-image:
+    radial-gradient(circle at 8% 14%, var(--yellow) 0 7px, transparent 8px),
+    radial-gradient(circle at 92% 8%, var(--cyan) 0 10px, transparent 11px),
+    radial-gradient(circle at 76% 44%, var(--pink) 0 6px, transparent 7px),
+    radial-gradient(circle at 18% 62%, var(--lilac) 0 9px, transparent 10px),
+    radial-gradient(circle at 48% 88%, var(--mint) 0 7px, transparent 8px),
+    radial-gradient(circle at 66% 72%, var(--yellow) 0 5px, transparent 6px);
+  background-size:620px 620px;
+}
+.page{max-width:1180px;margin:0 auto;padding:0 22px 80px;position:relative}
+h1,h2,h3,.sh{font-family:'Shrikhand',cursive;font-weight:400;margin:0;letter-spacing:.005em}
+
+/* ---------- floating sticker header, deliberately tilted ---------- */
+header{position:relative;padding:40px 0 10px}
+.sticker{
+  display:inline-block;background:var(--ink);color:var(--cream);padding:7px 18px;border-radius:999px;
+  font-weight:700;font-size:12.5px;letter-spacing:.16em;text-transform:uppercase;transform:rotate(-2.5deg)
+}
+h1{font-size:clamp(50px,10vw,104px);line-height:.98;margin:18px 0 0;color:var(--ink)}
+h1 .a{color:var(--pink);display:inline-block;transform:rotate(-3deg)}
+h1 .b{color:var(--cyan);display:inline-block;transform:rotate(2deg)}
+.lede{max-width:46ch;font-size:19.5px;margin:16px 0 0;font-weight:600}
+.squiggle{position:absolute;pointer-events:none}
+.sq1{right:2%;top:30px;width:230px}
+.sq2{left:-14px;bottom:-26px;width:170px}
+
+/* ---------- chips bar, scattered ---------- */
+.chips{display:flex;gap:11px;flex-wrap:wrap;align-items:center;margin:30px 0 8px}
+.chip{font-weight:700;font-size:12px;letter-spacing:.06em;padding:7px 14px;border-radius:999px;
+  border:3px solid var(--ink);background:#fff;transform:rotate(-1deg)}
+.chip:nth-child(2n){transform:rotate(1.4deg);background:var(--yellow)}
+.chip:nth-child(3n){background:var(--cyan)}
+.chip.ok{background:var(--mint)}
+.chip.warn{background:var(--pink);color:#fff}
+
+button{
+  font-family:'Poppins';font-weight:700;font-size:13.5px;cursor:pointer;padding:11px 20px;
+  border:3px solid var(--ink);border-radius:999px;background:var(--pink);color:#fff;
+  box-shadow:4px 4px 0 var(--ink);transition:.1s
+}
+button:hover:not(:disabled){transform:translate(-1px,-1px);box-shadow:6px 6px 0 var(--ink)}
+button:active:not(:disabled){transform:translate(4px,4px);box-shadow:0 0 0 var(--ink)}
+button:disabled{opacity:.4;cursor:not-allowed;box-shadow:none}
+button.cy{background:var(--cyan);color:var(--ink)}
+button.ye{background:var(--yellow);color:var(--ink)}
+button.pale{background:#fff;color:var(--ink)}
+button.sm{font-size:12px;padding:8px 14px;border-width:2px;box-shadow:3px 3px 0 var(--ink)}
+
+/* ---------- rounds: a tilted scatter, never a neat grid ---------- */
+.scatter{display:flex;flex-wrap:wrap;gap:26px;margin:26px 0 0;align-items:flex-start}
+.round{
+  flex:1 1 252px;max-width:330px;border:4px solid var(--ink);border-radius:26px;background:#fff;
+  padding:20px 20px 18px;box-shadow:7px 7px 0 var(--ink);cursor:pointer;position:relative;overflow:hidden
+}
+.round:nth-child(4n+1){transform:rotate(-1.6deg);background:#fff}
+.round:nth-child(4n+2){transform:rotate(1.4deg);background:var(--yellow)}
+.round:nth-child(4n+3){transform:rotate(-.8deg);background:var(--cyan)}
+.round:nth-child(4n+4){transform:rotate(2deg);background:var(--lilac);color:#fff}
+.round.sel{box-shadow:7px 7px 0 var(--pink);outline:4px dashed var(--pink);outline-offset:5px}
+.round .blobs{position:absolute;right:-18px;bottom:-22px;width:120px;opacity:.5;pointer-events:none}
+.round h3{font-size:22px;line-height:1.1}
+.round .state{display:inline-block;font-weight:700;font-size:11px;letter-spacing:.1em;
+  text-transform:uppercase;border:2.5px solid var(--ink);border-radius:999px;padding:2px 10px;
+  background:#fff;color:var(--ink);margin-bottom:10px}
+.round .pool{font-family:'Shrikhand';font-size:46px;line-height:1;margin-top:10px}
+.round .meta{font-weight:600;font-size:13px;margin-top:4px;opacity:.85}
+.round .acts{margin-top:14px}
+
+/* ---------- projects: stacked bars with squiggle dividers ---------- */
+.projhead{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin:48px 0 6px}
+.projhead h2{font-size:34px}
+.projhead span{font-weight:600;color:#5b5370}
+.proj{
+  border:4px solid var(--ink);border-radius:20px;background:#fff;padding:18px 22px;margin-top:18px;
+  box-shadow:6px 6px 0 var(--ink);position:relative
+}
+.proj:nth-child(odd){transform:rotate(-.5deg)}
+.proj:nth-child(even){transform:rotate(.6deg)}
+.proj .line1{display:flex;justify-content:space-between;gap:14px;align-items:baseline;flex-wrap:wrap}
+.proj h4{font-family:'Shrikhand';font-size:24px;margin:0}
+.proj .who{font-weight:600;font-size:12.5px;color:#5b5370}
+.numbers{display:flex;gap:26px;flex-wrap:wrap;margin-top:12px}
+.numbers div span{display:block;font-weight:700;font-size:11px;letter-spacing:.12em;
+  text-transform:uppercase;color:#5b5370}
+.numbers div b{font-family:'Shrikhand';font-size:27px;font-weight:400}
+.numbers .m b{color:var(--pink)}
+.confetti{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px;align-items:center}
+.confetti i{width:19px;height:19px;display:block;border:2.5px solid var(--ink)}
+.confetti i:nth-child(5n+1){background:var(--pink);border-radius:50%}
+.confetti i:nth-child(5n+2){background:var(--cyan)}
+.confetti i:nth-child(5n+3){background:var(--yellow);border-radius:50% 0 50% 0}
+.confetti i:nth-child(5n+4){background:var(--lilac);border-radius:50%}
+.confetti i:nth-child(5n+5){background:var(--mint);transform:rotate(45deg)}
+.confetti .cap{width:100%;font-weight:700;font-size:11.5px;letter-spacing:.1em;
+  text-transform:uppercase;color:#5b5370;margin-bottom:-2px}
+.proj .acts{margin-top:16px;display:flex;gap:10px;flex-wrap:wrap}
+
+/* ---------- the form, as a tilted slab at the bottom ---------- */
+.slab{
+  margin-top:56px;border:4px solid var(--ink);border-radius:30px;background:var(--ink);color:var(--cream);
+  padding:34px 34px 36px;box-shadow:9px 9px 0 var(--pink);transform:rotate(-.6deg)
+}
+.slab h2{font-size:34px;color:var(--yellow)}
+.slab p{font-weight:600;opacity:.85;max-width:60ch;margin:6px 0 0}
+.slabgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:18px;margin-top:22px;align-items:end}
+label{display:block;font-weight:700;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--cyan);margin-bottom:6px}
+input,select{width:100%;padding:12px 15px;border:3px solid var(--cream);border-radius:999px;
+  background:var(--ink);color:var(--cream);font-family:'Poppins';font-weight:600;font-size:15px}
+input:focus,select:focus{outline:3px solid var(--yellow);outline-offset:2px}
+
+.nothing{border:4px dashed var(--ink);border-radius:26px;padding:42px 24px;text-align:center;
+  font-weight:700;color:#5b5370;background:#fff}
+
+#toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(180%) rotate(-1.5deg);
+  background:var(--ink);color:var(--cream);padding:14px 24px;border:3px solid var(--yellow);border-radius:999px;
+  font-weight:700;font-size:14px;max-width:88vw;transition:transform .22s;z-index:60;
+  box-shadow:5px 5px 0 var(--pink)}
+#toast.show{transform:translateX(-50%) translateY(0) rotate(-1.5deg)}
+#toast.bad{background:var(--pink);border-color:var(--ink);box-shadow:5px 5px 0 var(--ink)}
+
+footer{margin-top:46px;font-weight:700;font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+  color:#5b5370;display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap}
+
+/* ===== BOT Chain ecosystem footer (KPI 5) ===== */
+footer.bc-foot{display:block;max-width:1180px;margin:46px auto 0;
+  border:4px solid #191324;border-radius:26px;background:#fff;
+  box-shadow:8px 8px 0 #23cfd8;transform:rotate(-.5deg);overflow:hidden}
+.bc-foot-grid{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:20px;
+  padding:20px 24px;border-bottom:4px solid #191324}
+@media(max-width:720px){.bc-foot-grid{grid-template-columns:1fr;gap:14px}}
+.bc-foot .bc-logo{border:3px solid #191324;border-radius:16px;padding:9px 13px;background:#ffd23f}
+.bc-foot .bc-id{font-family:'Shrikhand',cursive;font-size:22px;color:#191324;line-height:1.1;
+  text-transform:none}
+.bc-foot .bc-id small{display:block;font-family:'Poppins',sans-serif;font-weight:700;font-size:10px;
+  letter-spacing:.18em;text-transform:uppercase;color:#5b5370;margin-top:4px}
+.bc-foot .bc-links{display:flex;gap:10px;flex-wrap:wrap}
+.bc-foot .bc-links a{font-family:'Poppins',sans-serif;font-weight:700;font-size:12px;
+  letter-spacing:.06em;text-transform:uppercase;color:#fff;text-decoration:none;
+  padding:9px 17px;border:3px solid #191324;border-radius:999px;background:#ff4f8b;
+  box-shadow:3px 3px 0 #191324}
+.bc-foot .bc-links a:nth-child(2){background:#23cfd8;color:#191324}
+.bc-foot .bc-links a:hover{transform:translate(-1px,-1px);box-shadow:5px 5px 0 #191324}
+.bc-foot .bc-meta{font-family:'Poppins',sans-serif;font-weight:700;font-size:10.5px;
+  letter-spacing:.12em;text-transform:uppercase;color:#5b5370;padding:13px 24px;
+  display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.bc-foot .bc-meta b{color:#191324}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <svg class="squiggle sq1" viewBox="0 0 240 90" aria-hidden="true">
+      <path d="M4 60 C34 6 58 6 86 60 S146 114 176 60 S230 10 236 44" fill="none"
+        stroke="#ff4f8b" stroke-width="9" stroke-linecap="round"/>
+    </svg>
+    <div class="sticker">Matching funds · BOT Chain</div>
+    <h1><span class="a">Match</span><span class="b">Bloc</span></h1>
+    <p class="lede">The pool splits by how many wallets backed you — not by how much they gave. Ten people with 1 BOT beat one person with 10.</p>
+    <svg class="squiggle sq2" viewBox="0 0 180 70" aria-hidden="true">
+      <path d="M6 40 q22 -34 44 0 t44 0 t44 0" fill="none" stroke="#23cfd8" stroke-width="8" stroke-linecap="round"/>
+    </svg>
+  </header>
+
+  <div class="chips">
+    <button id="btn-connect">Connect wallet</button>
+    <span class="chip" id="c-net">network</span>
+    <span class="chip" id="c-acct">not connected</span>
+    <span class="chip" id="c-contract">contract not set</span>
+    <span class="chip" id="c-stats">—</span>
+    <button class="pale sm" id="btn-refresh">Refresh</button>
+  </div>
+
+  <div class="scatter" id="rounds"><div class="nothing">No rounds yet</div></div>
+
+  <div class="projhead">
+    <h2 id="proj-head">Projects</h2>
+    <span>pick a round above · the blocks are the match weight</span>
+  </div>
+  <div id="projects"><div class="nothing">Pick a round</div></div>
+
+  <section class="slab">
+    <h2>Start a round</h2>
+    <p>You seed the pool. Anyone can close the round once its clock runs out, so the money can never be stranded — and a round that ends with no backers refunds the whole pool to you.</p>
+    <div class="slabgrid">
+      <div>
+        <label for="f-name">Round name</label>
+        <input id="f-name" maxlength="56" placeholder="Autumn ecosystem round" />
+      </div>
+      <div>
+        <label for="f-pool">Pool (BOT)</label>
+        <input id="f-pool" type="number" min="0.1" step="0.1" value="10" />
+      </div>
+      <div>
+        <label for="f-dur">Runs for</label>
+        <select id="f-dur">
+          <option value="86400">1 day</option>
+          <option value="604800" selected>7 days</option>
+          <option value="1209600">14 days</option>
+          <option value="2592000">30 days</option>
+        </select>
+      </div>
+      <div><button class="ye" id="btn-create">Seed it</button></div>
+      <div style="grid-column:1/-1;border-top:3px dashed rgba(253,244,227,.3);padding-top:18px">
+        <label for="f-proj">Register a project in the selected round</label>
+        <div style="display:flex;gap:14px;flex-wrap:wrap">
+          <input id="f-proj" maxlength="56" placeholder="Lightfoot" style="flex:1 1 220px" />
+          <button class="cy" id="btn-register">Register</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>MatchBloc · reach wins · nobody buys the match</span>
+    <span id="f-chain">BOT Chain</span>
+  </footer>
+</div>
+
+
+<!-- ===== BOT Chain ecosystem footer (KPI 5) ===== -->
+<footer class="bc-foot">
+  <div class="bc-foot-grid">
+    <div class="bc-logo" aria-hidden="true"><svg viewBox="0 0 63.63 100" xmlns="http://www.w3.org/2000/svg" style="width:21px;height:33px;display:block"><path fill="#00A67E" d="M31.67 99.95 L0 82.48 L0.11 63.74 L47.01 90.60 L47.01 73.19 L15.98 55.32 L15.95 36.49 L46.92 53.57 L47.39 36.82 L15.96 17.81 L16.26 0 L63.06 27.02 L62.82 46.20 L47.86 54.67 L62.85 63.00 L63.62 81.42 Z"/></svg></div>
+    <div class="bc-id">BOT Chain<small>Part of the ecosystem</small></div>
+    <div class="bc-links">
+      <a href="https://botchain.ai" target="_blank" rel="noopener noreferrer">botchain.ai</a>
+      <a id="bc-explorer" href="https://scan.botchain.ai" target="_blank" rel="noopener noreferrer">Explorer</a>
+    </div>
+  </div>
+  <div class="bc-meta">
+    <span>&copy; 2026 <b>BOT Chain</b> &mdash; EVM-compatible Layer 1</span>
+  </div>
+</footer>
+
+<div id="toast"></div>
+
+<script>
+/* ============================================================================
+   CONTRACT + NETWORK CONFIG
+
+   Paste the deployed address below. Defaults to BOT Chain TESTNET.
+
+   TESTNET -> MAINNET: swap these five values together, never some of them.
+     CONTRACT_ADDRESS  -> the mainnet address
+     chainId           -> "0x2A5"
+     chainName         -> "BOT Chain"
+     rpcUrls           -> ["https://rpc.botchain.ai"]
+     blockExplorerUrls -> ["https://scan.botchain.ai"]
+   ...and set label -> "MAINNET" so the badge reads correctly.
+   ========================================================================== */
+const CONTRACT_ADDRESS = "0x0000000000000000000000000000000000000000";
+
+const NETWORK = {
+  chainId: "0x3C8",                              // 968 testnet  | mainnet: "0x2A5"
+  chainIdDec: 968,                               // reference only, not shown on the page | mainnet: 677
+  chainName: "BOT Chain Testnet",                //              | mainnet: "BOT Chain"
+  rpcUrls: ["https://rpc.bohr.life"],            //              | mainnet: ["https://rpc.botchain.ai"]
+  blockExplorerUrls: ["https://scan.bohr.life"], //              | mainnet: ["https://scan.botchain.ai"]
+  nativeCurrency: { name: "BOT", symbol: "BOT", decimals: 18 },
+  label: "TESTNET"                               //              | mainnet: "MAINNET"
+};
+
+const ABI = [
+  "function createRound(string name, uint64 durationSecs) payable returns (uint256)",
+  "function registerProject(uint256 roundId, string name) returns (uint256)",
+  "function back(uint256 projectId) payable",
+  "function settleRound(uint256 roundId)",
+  "function claim(uint256 projectId)",
+  "function roundCount() view returns (uint256)",
+  "function projectCount() view returns (uint256)",
+  "function getRound(uint256 id) view returns (tuple(address sponsor,uint256 pool,uint64 endsAt,bool settled,uint32 projectCount,uint256 totalBackers,string name))",
+  "function getProject(uint256 id) view returns (tuple(uint64 roundId,address owner,uint256 raised,uint32 backers,uint256 matched,bool claimed,string name))",
+  "function getRoundProjects(uint256 roundId) view returns (uint256[])",
+  "function getRecentRounds(uint256 limit) view returns (uint256[])",
+  "function estimatedMatch(uint256 projectId) view returns (uint256)",
+  "function contributionOf(uint256 projectId, address backer) view returns (uint256)",
+  "function lockedTotal() view returns (uint256)",
+  "function feeBps() view returns (uint16)"
+];
+
+const ZERO = "0x0000000000000000000000000000000000000000";
+const $ = (id) => document.getElementById(id);
+let provider, signer, account, contract, readContract;
+let rounds = [], selected = null, projects = [];
+
+function toast(msg, bad) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.className = "show" + (bad ? " bad" : "");
+  clearTimeout(t._h);
+  t._h = setTimeout(() => (t.className = ""), 4200);
+}
+const short = (a) => a.slice(0, 6) + "…" + a.slice(-4);
+const fmt = (wei) => {
+  const n = Number(ethers.formatEther(wei));
+  return (n >= 1 ? n.toFixed(2) : n.toFixed(4)).replace(/0+$/, "").replace(/\.$/, "");
+};
+function esc(s) {
+  return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+function reason(e) {
+  const m = (e && (e.shortMessage || e.reason || e.message)) || "Transaction failed";
+  return String(m).replace(/^execution reverted:?\s*/i, "").slice(0, 150);
+}
+function left(endsAt) {
+  const s = endsAt - Math.floor(Date.now() / 1000);
+  if (s <= 0) return "closed";
+  const d = Math.floor(s / 86400);
+  if (d >= 1) return d + "d left";
+  const h = Math.floor(s / 3600);
+  if (h >= 1) return h + "h left";
+  return Math.max(1, Math.floor(s / 60)) + "m left";
+}
+
+/* ---------------------------------------------------------------- wallet */
+function readOnly() {
+  try {
+    const p = new ethers.JsonRpcProvider(NETWORK.rpcUrls[0]);
+    readContract = new ethers.Contract(CONTRACT_ADDRESS, ABI, p);
+  } catch (e) { /* no read-only view */ }
+}
+async function connect() {
+  if (!window.ethereum) { toast("No wallet found. Install MetaMask.", true); return; }
+  try {
+    provider = new ethers.BrowserProvider(window.ethereum);
+    await provider.send("eth_requestAccounts", []);
+    await ensureChain();
+    signer = await provider.getSigner();
+    account = await signer.getAddress();
+    contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+    $("c-acct").textContent = short(account);
+    $("c-acct").className = "chip ok";
+    $("btn-connect").textContent = "Connected";
+    await load();
+  } catch (e) { toast(reason(e), true); }
+}
+async function ensureChain() {
+  const current = await window.ethereum.request({ method: "eth_chainId" });
+  if (current.toLowerCase() === NETWORK.chainId.toLowerCase()) return;
+  try {
+    await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: NETWORK.chainId }] });
+  } catch (err) {
+    if (err.code === 4902) {
+      await window.ethereum.request({
+        method: "wallet_addEthereumChain",
+        params: [{
+          chainId: NETWORK.chainId, chainName: NETWORK.chainName, rpcUrls: NETWORK.rpcUrls,
+          blockExplorerUrls: NETWORK.blockExplorerUrls, nativeCurrency: NETWORK.nativeCurrency
+        }]
+      });
+    } else throw err;
+  }
+}
+
+/* ------------------------------------------------------------------ load */
+async function load() {
+  const c = contract || readContract;
+  if (!c || CONTRACT_ADDRESS === ZERO) { renderRounds(); renderProjects(); return; }
+  try {
+    const [rc, pc, locked, fee] = await Promise.all([
+      c.roundCount(), c.projectCount(), c.lockedTotal(), c.feeBps()
+    ]);
+    $("c-stats").textContent = rc + " rounds · " + pc + " projects · " + fmt(locked) + " BOT locked · " +
+      (Number(fee) / 100) + "% on claim";
+
+    const ids = await c.getRecentRounds(12n);
+    rounds = [];
+    for (const id of ids) rounds.push({ id, r: await c.getRound(id) });
+    if (selected === null && rounds.length) selected = rounds[0].id;
+    renderRounds();
+    await loadProjects();
+  } catch (e) {
+    toast("Could not read the contract. Check the address and network.", true);
+  }
+}
+
+async function loadProjects() {
+  const c = contract || readContract;
+  projects = [];
+  if (!c || selected === null) { renderProjects(); return; }
+  const ids = await c.getRoundProjects(selected);
+  for (const id of ids) {
+    projects.push({ id, p: await c.getProject(id), est: await c.estimatedMatch(id) });
+  }
+  renderProjects();
+}
+
+/* ---------------------------------------------------------------- render */
+function renderRounds() {
+  const el = $("rounds");
+  if (CONTRACT_ADDRESS === ZERO) {
+    el.innerHTML = '<div class="nothing">No contract address set. Deploy MatchBloc, then paste the address into CONTRACT_ADDRESS in this file.</div>';
+    return;
+  }
+  if (!rounds.length) { el.innerHTML = '<div class="nothing">No rounds yet</div>'; return; }
+  const now = Math.floor(Date.now() / 1000);
+  el.innerHTML = rounds.map(({ id, r }) => {
+    const ended = now >= Number(r.endsAt);
+    const state = r.settled ? "settled" : ended ? "needs settling" : left(Number(r.endsAt));
+    return '<article class="round ' + (String(id) === String(selected) ? "sel" : "") + '" data-round="' + id + '">' +
+      '<svg class="blobs" viewBox="0 0 120 120" aria-hidden="true">' +
+        '<circle cx="34" cy="80" r="26" fill="#191324" opacity=".18"/>' +
+        '<rect x="62" y="56" width="44" height="44" fill="#191324" opacity=".12" transform="rotate(18 84 78)"/>' +
+      '</svg>' +
+      '<div class="state">' + state + '</div>' +
+      '<h3>' + esc(r.name) + '</h3>' +
+      '<div class="pool">' + fmt(r.pool) + '</div>' +
+      '<div class="meta">BOT pool · ' + r.projectCount + ' projects · ' + r.totalBackers + ' backers</div>' +
+      (ended && !r.settled ? '<div class="acts"><button class="sm pale" data-settle="' + id + '">Settle it</button></div>' : '') +
+    '</article>';
+  }).join("");
+}
+
+function renderProjects() {
+  const el = $("projects");
+  if (selected === null) { el.innerHTML = '<div class="nothing">Pick a round</div>'; return; }
+  const round = rounds.find((x) => String(x.id) === String(selected));
+  $("proj-head").textContent = round ? round.r.name : "Projects";
+  if (!projects.length) { el.innerHTML = '<div class="nothing">Nothing registered in this round yet</div>'; return; }
+
+  const settled = round && round.r.settled;
+  const ended = round && Math.floor(Date.now() / 1000) >= Number(round.r.endsAt);
+
+  el.innerHTML = projects.map(({ id, p, est }) => {
+    const mine = account && p.owner.toLowerCase() === account.toLowerCase();
+    const n = Math.min(Number(p.backers), 60);
+    let blocks = '<span class="cap">' + p.backers + ' distinct backers — this is the match weight</span>';
+    for (let i = 0; i < n; i++) blocks += "<i></i>";
+    if (!n) blocks += '<span style="font-weight:600;color:#5b5370">none yet</span>';
+    return '<article class="proj">' +
+      '<div class="line1"><h4>' + esc(p.name) + '</h4>' +
+        '<span class="who">' + short(p.owner) + (p.claimed ? " · claimed" : "") + '</span></div>' +
+      '<div class="numbers">' +
+        '<div><span>Raised</span><b>' + fmt(p.raised) + '</b></div>' +
+        '<div class="m"><span>' + (settled ? "Matched" : "Match if settled now") + '</span><b>' + fmt(settled ? p.matched : est) + '</b></div>' +
+        '<div><span>Backers</span><b>' + p.backers + '</b></div>' +
+      '</div>' +
+      '<div class="confetti">' + blocks + '</div>' +
+      '<div class="acts">' +
+        (!ended && !mine ? '<button class="sm" data-back="' + id + '">Back it</button>' : '') +
+        (settled && mine && !p.claimed ? '<button class="sm cy" data-claim="' + id + '">Claim raised + match</button>' : '') +
+      '</div>' +
+    '</article>';
+  }).join("");
+}
+
+/* --------------------------------------------------------------- actions */
+async function send(label, fn) {
+  if (!contract) { toast("Connect a wallet first.", true); return; }
+  try {
+    toast(label + "…");
+    const tx = await fn();
+    await tx.wait();
+    toast(label + " confirmed");
+    await load();
+  } catch (e) { toast(reason(e), true); }
+}
+
+$("btn-create").onclick = () => {
+  const name = $("f-name").value.trim();
+  const pool = $("f-pool").value;
+  if (!name) { toast("Name the round.", true); return; }
+  if (!(Number(pool) >= 0.1)) { toast("The pool must be at least 0.1 BOT.", true); return; }
+  send("Opening round", () => contract.createRound(name, $("f-dur").value, { value: ethers.parseEther(pool) }));
+};
+
+$("btn-register").onclick = () => {
+  const name = $("f-proj").value.trim();
+  if (selected === null) { toast("Select a round first.", true); return; }
+  if (!name) { toast("Name the project.", true); return; }
+  send("Registering project", () => contract.registerProject(selected, name));
+};
+
+$("rounds").addEventListener("click", (ev) => {
+  const s = ev.target.closest("button[data-settle]");
+  if (s) { ev.stopPropagation(); return send("Settling round", () => contract.settleRound(s.dataset.settle)); }
+  const card = ev.target.closest("[data-round]");
+  if (!card) return;
+  selected = card.dataset.round;
+  renderRounds();
+  loadProjects();
+});
+
+$("projects").addEventListener("click", (ev) => {
+  const b = ev.target.closest("button[data-back]");
+  if (b) {
+    const amt = prompt("How much BOT? Your first contribution is what earns match weight.", "1");
+    if (!amt || !(Number(amt) > 0)) return;
+    return send("Backing project", () => contract.back(b.dataset.back, { value: ethers.parseEther(amt) }));
+  }
+  const c = ev.target.closest("button[data-claim]");
+  if (c) return send("Claiming", () => contract.claim(c.dataset.claim));
+});
+
+$("btn-connect").onclick = connect;
+$("btn-refresh").onclick = load;
+
+/* ------------------------------------------------------------------ boot */
+$("c-net").textContent = NETWORK.chainName + " · " + NETWORK.label;
+$("f-chain").textContent = "BOT Chain " + NETWORK.label;
+if (CONTRACT_ADDRESS !== ZERO) {
+  $("c-contract").textContent = short(CONTRACT_ADDRESS);
+} else {
+  $("c-contract").className = "chip warn";
+}
+if (window.ethereum) {
+  window.ethereum.on("accountsChanged", () => location.reload());
+  window.ethereum.on("chainChanged", () => location.reload());
+}
+readOnly();
+load();
+
+/* ---- BOT Chain ecosystem footer: follows the NETWORK config above ---- */
+(function () {
+  var ex = document.getElementById("bc-explorer");
+  if (ex) ex.href = NETWORK.blockExplorerUrls[0];
+})();
+</script>
+</body>
+</html>
